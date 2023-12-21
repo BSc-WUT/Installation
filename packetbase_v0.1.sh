@@ -98,15 +98,10 @@ docker pull packetbase/sniffer:latest
 
 # Set up netowrk
 docker network create es-net
-docker network connect es-net packetbase/frontend
-docker network connect es-net packetbase/db-api
-docker network connect es-net packetbase/ml-api
-docker network connect es-net packetbase/db
-docker network connect es-net packetbase/sniffer
 
-# Run Docker images
-docker run -d packetbase/frontend --env-file ./frontend_env
-docker run -d packetbase/db-api --env-file ./db_api_env
-docker run -d packetbase/ml-api --env-file ./ml_api_env
-docker run -d packetbase/db --env-file ./db_env
-docker run -d packetbase/sniffer --env-file ./sniffer_env
+# Run Docker images inside created network
+docker run -d --network es-net packetbase/frontend --env-file ./frontend_env
+docker run -d --network es-net packetbase/db-api --env-file ./db_api_env
+docker run -d --network es-net packetbase/ml-api --env-file ./ml_api_env
+docker run -d --network es-net packetbase/db --env-file ./db_env
+docker run -d --network es-net packetbase/sniffer --env-file ./sniffer_env
