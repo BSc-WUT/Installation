@@ -7,6 +7,10 @@ ES_VERSION=7.10.2
 DATABASE_HOST=es01
 DATABASE_USER=root
 DATABASE_PASSWORD=root
+ML_API=${NEXT_PUBLIC_ML_API:-localhost}
+DB_API=${NEXT_PUBLIC_DB_API:-localhost}
+ML_API_PORT=${NEXT_PUBLIC_ML_API_PORT:-8080}
+DB_API_PORT=${NEXT_PUBLIC_DB_API_PORT:-8000}
 
 # Parsing arguments
 for arg in "$@"
@@ -36,12 +40,12 @@ read -p "Enter default password: " NEXT_PUBLIC_PASSWORD
 
 # Setting variables from arguments
 if [ ! -z "$ML_API" ]; then
-    NEXT_PUBLIC_ML_API=http://${ML_API}
+    NEXT_PUBLIC_ML_API=$ML_API
     NEXT_PUBLIC_ML_API_PORT=$ML_API_PORT
 fi
 
 if [ ! -z "$DB_API" ]; then
-    NEXT_PUBLIC_DB_API=http://${DB_API}
+    NEXT_PUBLIC_DB_API=$DB_API
     NEXT_PUBLIC_DB_API_PORT=$DB_API_PORT
 fi
 
@@ -79,9 +83,9 @@ EOF
 
 # Create .sniffer_env file
 cat > .sniffer_env << EOF
-ML_API=$NEXT_PUBLIC_ML_API
+ML_API=http://${NEXT_PUBLIC_ML_API}
 ML_API_PORT=$NEXT_PUBLIC_ML_API_PORT
-DB_API=$NEXT_PUBLIC_DB_API
+DB_API=http://${NEXT_PUBLIC_DB_API}
 DB_API_PORT=$NEXT_PUBLIC_DB_API_PORT
 EOF
 
@@ -92,9 +96,17 @@ docker pull packetbase/ml-api:latest
 docker pull packetbase/db:latest
 docker pull packetbase/sniffer:latest
 
+# Set up netowrk
+docker network create es-net
+docker network connect es-net packetbase/frontend
+docker network connect es-net packetbase/db-api
+docker network connect es-net packetbase/ml-api
+docker network connect es-net packetbase/db
+docker network connect es-net packetbase/sniffer
+
 # Run Docker images
-docker run packetbase/frontend --env-file ./frontend_env
-docker run packetbase/db-api --env-file ./db_api_env
-docker run packetbase/ml-api --env-file ./ml_api_env
-docker run packetbase/db --env-file ./db_env
-docker run packetbase/sniffer --env-file ./sniffer_env
+docker run -d packetbase/frontend --env-file ./frontend_env
+docker run -d packetbase/db-api --env-file ./db_api_env
+docker run -d packetbase/ml-api --env-file ./ml_api_env
+docker run -d packetbase/db --env-file ./db_env
+docker run -d packetbase/sniffer --env-file ./sniffer_env
