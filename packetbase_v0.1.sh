@@ -38,7 +38,33 @@ read -p "Enter Elastic Port: " ES_PORT
 read -p "Enter default username: " NEXT_PUBLIC_USERNAME
 read -p "Enter default password: " NEXT_PUBLIC_PASSWORD
 
-# Setting variables from arguments
+
+# Get network interface for packet sniffer
+IFS=$'\n' read -r -d '' -a interfaces < <( ip link show | grep -Po '^\d+: \K[^:]+')
+
+if [ ${#interfaces[@]} -eq 0 ]; then
+    echo "No network interfaces found."
+    exit 1
+fi
+
+echo "Available network interfaces:"
+for i in "${!interfaces[@]}"; do
+    echo "$((i+1))) ${interfaces[i]}"
+done
+
+while true; do
+    read -p "Please select an interface (1-${#interfaces[@]}): " choice
+
+    # Validate input
+    if [[ $choice =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le ${#interfaces[@]} ]; then
+        selected_interface=${interfaces[$((choice-1))]}
+        INTERFACE=$selected_interface
+        break
+    else
+        echo "Invalid selection. Please try again."
+    fi
+done
+
 if [ ! -z "$ML_API" ]; then
     NEXT_PUBLIC_ML_API=$ML_API
     NEXT_PUBLIC_ML_API_PORT=$ML_API_PORT
@@ -87,6 +113,7 @@ ML_API=http://${NEXT_PUBLIC_ML_API}
 ML_API_PORT=$NEXT_PUBLIC_ML_API_PORT
 DB_API=http://${NEXT_PUBLIC_DB_API}
 DB_API_PORT=$NEXT_PUBLIC_DB_API_PORT
+INTERFACE=$INTERFACE
 EOF
 
 # Pull Docker images
