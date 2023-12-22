@@ -116,6 +116,11 @@ DB_API_PORT=$NEXT_PUBLIC_DB_API_PORT
 INTERFACE=$INTERFACE
 EOF
 
+# Docker Cleanup
+
+docker image prune # Remove tangling containers
+docker rm $(docker ps -a -f status=exited -q) # Remove exited containers
+
 # Pull Docker images
 docker pull packetbase/frontend:latest
 docker pull packetbase/db-api:latest
