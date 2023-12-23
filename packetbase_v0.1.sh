@@ -7,7 +7,7 @@ DATABASE_HOST=es01
 DATABASE_USER=elastic
 ML_API=${NEXT_PUBLIC_ML_API:-localhost}
 DB_API=${NEXT_PUBLIC_DB_API:-localhost}
-DB=${DB:-localhost}
+DB=${DB:-es01}
 DB_PORT=${DB_PORT:-9200}
 ML_API_PORT=${NEXT_PUBLIC_ML_API_PORT:-8080}
 DB_API_PORT=${NEXT_PUBLIC_DB_API_PORT:-8000}
@@ -196,9 +196,19 @@ echo
 
 # Run Docker images inside created network
 echo "Running docker containers..."
-docker run -d --network es-net --env-file ./.frontend_env -p 3000:3000 packetbase/frontend
-docker run -d --network es-net --env-file ./.db_api_env -p $NEXT_PUBLIC_DB_API_PORT:$NEXT_PUBLIC_DB_API_PORT packetbase/db-api
-docker run -d --network es-net --env-file ./.ml_api_env -p $NEXT_PUBLIC_ML_API_PORT:$NEXT_PUBLIC_ML_API_PORT packetbase/ml-api
+docker run -d --network es-net --env-file ./.frontend_env \
+    --name frontend \
+    --hostname frontend \
+     -p 3000:3000 \
+     packetbase/frontend
+docker run -d --network es-net --env-file ./.db_api_env \
+    --name db_api \
+    -p $NEXT_PUBLIC_DB_API_PORT:$NEXT_PUBLIC_DB_API_PORT \
+     packetbase/db-api
+docker run -d --network es-net --env-file ./.ml_api_env \
+    --name ml_api \
+    -p $NEXT_PUBLIC_ML_API_PORT:$NEXT_PUBLIC_ML_API_PORT \
+    packetbase/ml-api
 docker run -d --network es-net --env-file ./.db_env \
     --name es01 \
     --hostname es01 \
