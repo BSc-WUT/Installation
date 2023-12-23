@@ -222,6 +222,7 @@ docker run -d --network es-net --env-file ./.db_env \
     packetbase/db
 sleep 5
 docker run -d --network=host --env-file ./.sniffer_env \
+    --name sniffer \
     --cap-add=NET_ADMIN \
     --cap-add=NET_RAW \
     packetbase/sniffer
