@@ -5,10 +5,12 @@ ES_MEM_LIMIT=4294967296
 ES_VERSION=7.10.2
 DATABASE_HOST=es01
 DATABASE_USER=elastic
-ML_API=${NEXT_PUBLIC_ML_API:-localhost}
-DB_API=${NEXT_PUBLIC_DB_API:-localhost}
+API=${NEXT_PUBLIC_API:-localhost}
+ML_API=${NEXT_PUBLIC_ML_API:-ml-api}
+DB_API=${NEXT_PUBLIC_DB_API:-db-api}
 DB=${DB:-es01}
 DB_PORT=${DB_PORT:-9200}
+API_PORT=${NEXT_PUBLIC_API_PORT:-9000}
 ML_API_PORT=${NEXT_PUBLIC_ML_API_PORT:-8080}
 DB_API_PORT=${NEXT_PUBLIC_DB_API_PORT:-8000}
 
@@ -20,6 +22,12 @@ do
         IFS=':' read -ra ML_API_ARG <<< "${arg#*=}"
         ML_API=${ML_API_ARG[0]}
         ML_API_PORT=${ML_API_ARG[1]}
+        shift
+        ;;
+        --api=*)
+        IFS=':' read -ra API_ARG <<< "${arg#*=}"
+        API=${API_ARG[0]}
+        API_PORT=${API_ARG[1]}
         shift
         ;;
         --db-api=*)
@@ -42,6 +50,10 @@ echo -e "\e[30m\e[0m"
 sleep 0.3
 
 # User input
+echo "Please provide default API port"
+read -p "Enter API port: " API_PORT
+sleep 0.3
+
 echo "Please provide elastic password which will be used for database authentication"
 read -p "Enter Elastic Password: " ELASTIC_PASSWORD
 sleep 0.3
@@ -92,6 +104,11 @@ if [ ! -z "$DB_API" ]; then
     NEXT_PUBLIC_DB_API_PORT=$DB_API_PORT
 fi
 
+if [ ! -z "$API" ]; then
+    NEXT_PUBLIC_API=$API
+    NEXT_PUBLIC_API_PORT=$API_PORT
+fi
+
 # Create .db_env file
 cat > .db_env << EOF
 ELASTIC_PASSWORD=$ELASTIC_PASSWORD
@@ -105,10 +122,8 @@ EOF
 cat > .frontend_env << EOF
 NEXT_PUBLIC_USERNAME=$NEXT_PUBLIC_USERNAME
 NEXT_PUBLIC_PASSWORD=$NEXT_PUBLIC_PASSWORD
-NEXT_PUBLIC_DB_API=$NEXT_PUBLIC_DB_API
-NEXT_PUBLIC_DB_API_PORT=$NEXT_PUBLIC_DB_API_PORT
-NEXT_PUBLIC_ML_API=$NEXT_PUBLIC_ML_API
-NEXT_PUBLIC_ML_API_PORT=$NEXT_PUBLIC_ML_API_PORT
+NEXT_PUBLIC_API=$NEXT_PUBLIC_API
+NEXT_PUBLIC_API_PORT=$NEXT_PUBLIC_API_PORT
 EOF
 
 # Create .ml_api_env file
@@ -126,12 +141,24 @@ EOF
 
 # Create .sniffer_env file
 cat > .sniffer_env << EOF
-ML_API=http://${NEXT_PUBLIC_ML_API}
+ML_API=http://${API}
 ML_API_PORT=$NEXT_PUBLIC_ML_API_PORT
-DB_API=http://${NEXT_PUBLIC_DB_API}
+DB_API=http://${API}
 DB_API_PORT=$NEXT_PUBLIC_DB_API_PORT
 INTERFACE=$INTERFACE
 EOF
+
+
+# Create .api_gateway_env file
+cat > .api_gateway_env << EOF
+ML_API=$NEXT_PUBLIC_ML_API
+ML_API_PORT=$NEXT_PUBLIC_ML_API_PORT
+DB_API=$NEXT_PUBLIC_DB_API
+DB_API_PORT=$NEXT_PUBLIC_DB_API_PORT
+API_PORT=$API_PORT
+
+EOF
+
 
 # Docker Cleanup
 echo "Starting Docker cleanup"
@@ -172,6 +199,7 @@ images=(
   "packetbase/db-api:latest"
   "packetbase/db:latest"
   "packetbase/sniffer:latest"
+  "packetbase/api-gateway"
 )
 
 # Pull Docker images
@@ -201,12 +229,19 @@ docker run -d --network es-net --env-file ./.frontend_env \
     --hostname frontend \
      -p 3000:3000 \
      packetbase/frontend
+docker run -d --network es-net --env-file ./.api_gateway_env \
+    --name api_gateway \
+    --hostname api-gateway \
+     -p $NEXT_PUBLIC_API_PORT:$NEXT_PUBLIC_API_PORT \
+    packetbase/api-gateway
 docker run -d --network es-net --env-file ./.db_api_env \
     --name db_api \
+    --hostname $NEXT_PUBLIC_DB_API \
     -p $NEXT_PUBLIC_DB_API_PORT:$NEXT_PUBLIC_DB_API_PORT \
      packetbase/db-api
 docker run -d --network es-net --env-file ./.ml_api_env \
     --name ml_api \
+    --hostname $NEXT_PUBLIC_ML_API \
     -p $NEXT_PUBLIC_ML_API_PORT:$NEXT_PUBLIC_ML_API_PORT \
     packetbase/ml-api
 docker run -d --network es-net --env-file ./.db_env \
